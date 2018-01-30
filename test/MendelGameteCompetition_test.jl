@@ -30,7 +30,7 @@ using Distributions #
     @test size(parameter.par) == (2,)
     @test all(parameter.par .== 1.0)
     @test size(parameter.name) == (2,)
-    @test parameter.name[1] == "tau 1   "
+    @test parameter.name[1] == "tau 1   " #not sure why there's all these extra spaces
     @test parameter.name[2] == "tau 2   "    
     @test size(parameter.min) == (2,)
     @test size(parameter.max) == (2,)
@@ -46,90 +46,96 @@ using Distributions #
 
 end
 
-# @testset "prior function" begin
-#     keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
-#     process_keywords!(keyword, "gamete competition Control.txt", "")
-#     (pedigree, person, nuclear_family, locus, snpdata,
-#     locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
-#         read_external_data_files(keyword)
+@testset "prior function" begin
+    keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
+    process_keywords!(keyword, "gamete competition Control.txt", "")
+    (pedigree, person, nuclear_family, locus, snpdata,
+    locus_frame, phenotype_frame, pedigree_frame, snp_definition_frame) =
+        read_external_data_files(keyword)
 
 
-#     loc = 1 #current locus
-#     keyword["eliminate_genotypes"] = true
-#     keyword["constraints"] = 1
-#     keyword["goal"] = "maximize"
-#     keyword["parameters"] = locus.alleles[loc]
-#     keyword["title"] = "Gamete competition analysis for " * locus.name[loc]
+    loc = 1 #current locus
+    keyword["eliminate_genotypes"] = true
+    keyword["constraints"] = 1
+    keyword["goal"] = "maximize"
+    keyword["parameters"] = locus.alleles[loc]
+    keyword["title"] = "Gamete competition analysis for " * locus.name[loc]
 
-#     parameter = set_parameter_defaults(keyword)
-#     parameter = MendelGameteCompetition.initialize_optimization_gamete_competition!(
-#         locus, parameter, keyword)
+    parameter = set_parameter_defaults(keyword)
+    parameter = MendelGameteCompetition.initialize_optimization_gamete_competition!(
+        locus, parameter, keyword)
 
-#     par = parameter.par #this is [0.0]
-#     (instruction, elston_stewart_count) = orchestrate_likelihood(pedigree,
-#         person, nuclear_family, locus, keyword)
+    par = parameter.par #this is [0.0]
+    (instruction, elston_stewart_count) = orchestrate_likelihood(pedigree,
+        person, nuclear_family, locus, keyword)
 
-#     #
-#     # use dictionaries to assign prior probabilities
-#     #
-#     locus_dic = Dict()
-#     lucus_data = readtable("gamete competition LocusFrame.txt")
-#     for i in 1:length(locus.name)
-#         current = string(locus.name[i])
+    #
+    # use dictionaries to assign prior probabilities
+    #
+    locus_dic = Dict()
+    lucus_data = readtable("gamete competition LocusFrame.txt")
+    for i in 1:length(locus.name)
+        current = string(locus.name[i])
 
-#         #select the probability vector of current locus
-#         prob_vec = lucus_data[lucus_data[:Locus] .== current, 4] 
+        #select the probability vector of current locus
+        prob_vec = lucus_data[lucus_data[:Locus] .== current, 4] 
 
-#         #normalize the probabilities if they don't sum to 1
-#         if sum(prob_vec) != 1.0
-#             total = sum(prob_vec)
-#             for j in 1:length(prob_vec)
-#                 prob_vec[j] = prob_vec[j] / total
-#             end
-#         end
+        #normalize the probabilities if they don't sum to 1
+        if sum(prob_vec) != 1.0
+            total = sum(prob_vec)
+            for j in 1:length(prob_vec)
+                prob_vec[j] = prob_vec[j] / total
+            end
+        end
 
-#         #add the probabilities to dictionary, key = order in which locus appear
-#         locus_dic["$i"] = prob_vec 
-#     end
+        #add the probabilities to dictionary, key = order in which locus appear
+        locus_dic["$i"] = prob_vec 
+    end
 
-#     # loop through to compute probabilities
-#     # n is the variable iterating from instruction.start[ped] to instruction.finish[ped].
-#     for ped in 1:pedigree.pedigrees
-#         for n = instruction.start[ped]:instruction.finish[ped]-1
-#             operation = instruction.operation[n]
-#             start = instruction.extra[n][1]
-#             finish = instruction.extra[n][2]
-#             i = instruction.extra[n][3]
-#             if operation != penetrance_and_prior_array continue end #avoids some array access errors
-#             if person.mother[i] != 0 continue end #prior prob doesnt exist for non founder
+    # loop through to compute probabilities
+    # n is the variable iterating from instruction.start[ped] to instruction.finish[ped].
+    for ped in 1:pedigree.pedigrees
+        for n = instruction.start[ped]:instruction.finish[ped]-1
+            operation = instruction.operation[n]
+            start = instruction.extra[n][1]
+            finish = instruction.extra[n][2]
+            i = instruction.extra[n][3]
+            if operation != penetrance_and_prior_array continue end #avoids some array access errors
+            if person.mother[i] != 0 continue end #prior prob doesnt exist for non founder
 
-#             #
-#             # Construct the parent's multiple locus genotypes.
-#             #
-#             genotypes = MendelBase.genotype_count(person, locus, i, start, finish)
-#             multi_genotype = MendelBase.construct_multigenotypes(person, locus, start, finish,
-#                                                 genotypes, i)
+            #
+            # Construct the parent's multiple locus genotypes.
+            #
+            genotypes = MendelBase.genotype_count(person, locus, i, start, finish)
+            multi_genotype = MendelBase.construct_multigenotypes(person, locus, start, finish,
+                                                genotypes, i)
 
-#             for j = 1:genotypes
-#                 prob = MendelGameteCompetition.prior_gamete_competition(person, locus, 
-#                     multi_genotype[:, :, j], par, keyword, start, finish, i)
-#                 answer = 1.0
 
-#                 # tally probabilities contributed by the 10 locus 
-#                 for i in 1:length(locus.name)
-#                     prob_vec = locus_dic["$i"] #retrieve i'th locus's probability vector
+            for j = 1:genotypes
+                prob = MendelGameteCompetition.prior_gamete_competition(person, locus, 
+                    multi_genotype[:, :, j], par, keyword, start, finish, i)
+                answer = 1.0
 
-#                     #multi_genotype[1, i, j] is either 1 or 2, so we multiply answer by:
-#                     answer *= prob_vec[multi_genotype[1, i, j]] #first row ith column 
-#                     answer *= prob_vec[multi_genotype[2, i, j]] 
+                # tally probabilities contributed by the 10 locus 
+                for i in 1:length(locus.name)
 
-#                 end
+                    prob_vec = locus_dic["$i"] #retrieve i'th locus's probability vector
 
-#                 @test answer == prob
-#             end
-#         end
-#     end
-# end
+                    #multi_genotype[1, i, j] is either 0 or 1 or 2. I'm not sure why
+                    # it can be 0, but if it is, skip it. 
+                    # Otherwise we multiply answer by:
+                    if multi_genotype[1, i, j] == 0 || multi_genotype[2, i, j] == 0
+                        continue
+                    end
+                    answer *= prob_vec[multi_genotype[1, i, j]] #first row ith column 
+                    answer *= prob_vec[multi_genotype[2, i, j]] 
+                end
+
+                @test answer == prob
+            end
+        end
+    end
+end
 
 @testset "transmission" begin
     keyword = set_keyword_defaults!(Dict{AbstractString, Any}())
@@ -279,42 +285,7 @@ end
     @test result == nothing #returning nothing implies no error have been thrown
 end
 
-@testset "final output" begin
-    # note these tests are assuming that eslton_stewart algs are working properly
-    # they do not yet have tests.
-    GameteCompetition("gamete competition Control.txt")
-    result = readtable("gamete competition Table Output.txt")
-
-    low_allele_result = Array(result[:, :LowAllele])
-    low_allele = [1; 1; 1; 1; 1; 1; 2; 1; 1; 1]
-    @test low_allele_result == low_allele
-
-    LowTau_result = Array(result[:, :LowTau])
-    low_tau = [1.0; 1.0; 1.0; 1.0; 1.0; 0.6542079040718898; 1.0; 1.0; 1.0; 1.0]
-    all(LowTau_result .≈ low_tau)    
-
-    high_allele_result = Array(result[:, :HighAllele])
-    high_allele = [2; 2; 2; 2; 2; 2; 1; 2; 2; 2]
-    @test high_allele_result == high_allele
-
-    HighTau_result = Array(result[:, :HighTau])
-    high_tau = [5.41918; 5.0539; 5.23133; 4.52948; 4.59438; 
-                1.0; 8.04062; 6.67263; 7.45069; 8.51002]
-    for i in 1:length(HighTau_result)
-        cur = signif(HighTau_result[i], 6)
-        @test cur == high_tau[i]
-    end
-
-    pval_result = Array(result[:, :Pvalue])
-    pval = [2.80892e-5; 2.57148e-5; 3.22822e-6; 3.96425e-5; 3.25329e-5; 
-            0.00527033; 2.28436e-6; 4.60103e-6; 7.69303e-6; 7.94566e-7]
-    for i in 1:length(pval_result)
-        cur = signif(pval_result[i], 6)
-        @test cur == pval[i]
-    end
-end
-
-
+#current coverage = (95, 105) ≈ 90.5%
 
 
 
